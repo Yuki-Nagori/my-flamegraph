@@ -32,6 +32,7 @@ import shutil
 import yaml
 import signal
 import threading
+import shlex
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 
@@ -47,9 +48,11 @@ class ProjectConfig:
         self.build_cmds = config.get('build_cmds', [])
         self.executable = config.get('executable', '')
         self.target = config.get('target', '')
+        self.run_cmd = config.get('run_cmd', '')  # 自定义启动命令，如果为空则使用默认逻辑
         self.args = config.get('args', [])
         self.env = config.get('env', {})
         self.startup_delay = config.get('startup_delay', 3)
+        self.cache_dirs = config.get('cache_dirs', [])  # 需要清理的缓存目录
 
         # 确保输出目录存在
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -259,6 +262,20 @@ class GenericProfiler:
 
         self.log(f"开始构建项目: {self.project.name}")
 
+        # 清理缓存目录
+        if self.project.cache_dirs:
+            self.log(f"清理缓存目录: {self.project.cache_dirs}")
+            for cache_dir in self.project.cache_dirs:
+                expanded_path = Path(cache_dir).expanduser().resolve()
+                if expanded_path.exists():
+                    try:
+                        shutil.rmtree(expanded_path)
+                        self.log(f"已清理缓存目录: {expanded_path}")
+                    except Exception as e:
+                        self.log(f"清理缓存目录失败 {expanded_path}: {e}", level='WARNING')
+                else:
+                    self.log(f"缓存目录不存在: {expanded_path}")
+
         # 执行构建命令
         for i, cmd in enumerate(self.project.build_cmds):
             self.run_command(
@@ -341,7 +358,7 @@ tick-{self.sample_time}s
 """
         self.run_dtrace_analysis(pid, script, self.mem_stacks, "内存分析")
 
-    def generate_flamegraph(self, input_file: Path, output_svg: Path, title: str) -> bool:
+    def generate_flamegraph(self, input_file: Path, output_svg: Path, title: str, color: str = None) -> bool:
         """生成火焰图"""
         if not input_file.exists() or input_file.stat().st_size == 0:
             self.log(f"输入文件为空: {input_file}", level='WARNING')
@@ -353,23 +370,42 @@ tick-{self.sample_time}s
             folded_file = input_file.with_suffix('.folded')
 
             self.log(f"折叠堆栈数据: {input_file}")
-            with open(folded_file, 'w') as outfile:
+            with open(folded_file, 'w', encoding='utf-8') as outfile:
+                # 设置环境变量以支持UTF-8编码
+                env = os.environ.copy()
+                env['LANG'] = 'en_US.UTF-8'
+                env['LC_ALL'] = 'en_US.UTF-8'
+                env['PERL_UNICODE'] = 'AS'
+
                 subprocess.run(
                     [str(collapse_script), str(input_file)],
                     stdout=outfile,
                     stderr=subprocess.PIPE,
+                    env=env,
                     check=True
                 )
 
             # 生成SVG火焰图
             flamegraph_script = self.flamegraph_dir / 'flamegraph.pl'
 
+            # 构建参数列表
+            args = [str(flamegraph_script), f'--title={title}', str(folded_file)]
+            if color:
+                args.insert(1, f'--colors={color}')  # 在title参数后添加颜色参数
+
             self.log(f"生成火焰图: {output_svg}")
-            with open(output_svg, 'w') as outfile:
+            with open(output_svg, 'w', encoding='utf-8') as outfile:
+                # 设置环境变量以支持UTF-8编码
+                env = os.environ.copy()
+                env['LANG'] = 'en_US.UTF-8'
+                env['LC_ALL'] = 'en_US.UTF-8'
+                env['PERL_UNICODE'] = 'AS'
+
                 subprocess.run(
-                    [str(flamegraph_script), f'--title={title}', str(folded_file)],
+                    args,
                     stdout=outfile,
                     stderr=subprocess.PIPE,
+                    env=env,
                     check=True
                 )
 
@@ -387,10 +423,14 @@ tick-{self.sample_time}s
 
     def run_target_with_profiling(self, executable: Path):
         """运行目标程序并进行性能分析"""
-        self.log(f"启动目标程序: {executable}")
 
         # 准备命令行参数
-        cmd = [str(executable)] + self.project.args
+        if not self.project.run_cmd:
+            raise RuntimeError(f"项目 {self.project.name} 未配置启动命令 (run_cmd)")
+
+        # 使用配置的启动命令
+        cmd = shlex.split(self.project.run_cmd) + self.project.args
+        self.log(f"使用配置的启动命令: {self.project.run_cmd}")
 
         # 启动目标程序
         self.target_process = subprocess.Popen(
@@ -398,7 +438,8 @@ tick-{self.sample_time}s
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             preexec_fn=os.setsid,
-            env={**os.environ, **self.project.env}
+            env={**os.environ, **self.project.env},
+            cwd=self.project.path  # 确保在工作目录中运行
         )
 
         # 等待程序启动
@@ -497,7 +538,8 @@ tick-{self.sample_time}s
                 success = self.generate_flamegraph(
                     self.mem_stacks,
                     self.mem_svg,
-                    f"内存分配火焰图 - {self.project.name} ({self.sample_time}s)"
+                    f"内存分配火焰图 - {self.project.name} ({self.sample_time}s)",
+                    color='mem'
                 )
                 if success:
                     self.log(f"内存火焰图: {self.mem_svg}")

@@ -12,7 +12,7 @@ projects:
 
     # 构建命令（在项目目录中执行）
     build_cmds:
-      - "xmake config -vD --yes -m --is_community=false"
+      - "xmake config -vD --yes -m release"
       - "xmake b stem"
 
     # 可执行文件名称（或相对路径）
@@ -31,18 +31,34 @@ projects:
     # 启动后等待时间（秒，等待程序完全启动）
     startup_delay: 3
 
+    # 启动命令（如果为空，则根据target和executable自动决定）
+    run_cmd: "xmake run stem"
+
+    # 需要清理的缓存目录（在构建前清理）
+    cache_dirs:
+      - "~/Library/Caches/LiiiLabs/"
+      - "~/Library/Application Support/liiilabs"
+
   # 示例项目2: mogan
   mogan:
     path: "/Users/yuki/git/mogan"
     output_dir: "/Users/yuki/git/fireimage/mogan"
     build_cmds:
-      - "xmake config -vD --yes -m --is_community=false"
+      - "xmake config -vD --yes -m release --is_community=false"
       - "xmake b stem"
     executable: "MoganSTEM"  # 构建生成的可执行文件
     target: "stem"
     args: []
     env: {}
     startup_delay: 3
+
+    # 启动命令（如果为空，则根据target和executable自动决定）
+    run_cmd: "xmake run stem"
+
+    # 需要清理的缓存目录（在构建前清理）
+    cache_dirs:
+      - "~/Library/Caches/MoganLab"
+      - "~/Library/Application Support/moganlab"
 
   # 添加新项目的示例：
   # myproject:
