@@ -4,8 +4,8 @@
 projects:
   # 实际项目1: liii
   liii:
-    path: "/Users/yuki/git/liii/mogan"
-    output_dir: "/Users/yuki/git/fireimage/liii"
+    path: "~/git/liii/mogan"
+    output_dir: "~/git/fireimage/liii"
     build_cmds:
       - "xmake config -vD --yes -m release"
       - "xmake b stem"
@@ -16,8 +16,8 @@ projects:
 
   # 实际项目2: mogan
   mogan:
-    path: "/Users/yuki/git/mogan"
-    output_dir: "/Users/yuki/git/fireimage/mogan"
+    path: "~/git/mogan"
+    output_dir: "~/git/fireimage/mogan"
     build_cmds:
       - "xmake config -vD --yes -m release --is_community=false"
       - "xmake b stem"
@@ -28,11 +28,11 @@ projects:
 
   # 完整示例项目（参考使用，不会被实际执行）
   example:
-    # 项目根目录路径（必需）
-    path: "/path/to/your/project"
+    # 项目根目录路径（必需）- 使用用户主目录避免权限问题
+    path: "~/example/project"
 
     # 输出目录（火焰图等文件将保存在这里）（必需）
-    output_dir: "/path/to/output"
+    output_dir: "~/example/output"
 
     # 构建命令（在项目目录中执行）（必需）
     build_cmds:
@@ -70,7 +70,7 @@ global:
   enable_memory: true
 
   # FlameGraph目录
-  flamegraph_dir: "/Users/yuki/git/FlameGraph"
+  flamegraph_dir: "~/git/FlameGraph"
 
   # 是否跳过构建步骤
   skip_build: false

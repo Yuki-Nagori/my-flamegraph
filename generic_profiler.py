@@ -52,8 +52,12 @@ class ProjectConfig:
         self.startup_delay = config.get('startup_delay', 3)
         self.cache_dirs = config.get('cache_dirs', [])  # 需要清理的缓存目录
 
-        # 确保输出目录存在
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        # 确保输出目录存在（如果路径无效则静默失败，例如示例配置）
+        try:
+            self.output_dir.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            # 忽略错误，可能是示例配置或无效路径
+            pass
 
     def validate(self):
         """验证配置"""
