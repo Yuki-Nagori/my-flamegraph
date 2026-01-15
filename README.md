@@ -4,14 +4,14 @@
 
 ## 文件说明
 
-1. `generic_profiler.py` - 基于配置文件的通用分析器（推荐）
+1. `generic_profiler.py` - 基于配置文件的通用分析器
 2. `projects.yaml` - 项目配置文件
 
 ## 快速开始
 
 ### 1. 安装依赖
 - dtrace (macOS系统自带)
-- FlameGraph工具集 (已安装在 `/Users/yuki/git/FlameGraph`)
+- FlameGraph工具集 (推荐clone在 `～/git/FlameGraph`)
 - Python 3.6+
 
 ### 2. 使用通用分析器
