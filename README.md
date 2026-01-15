@@ -18,7 +18,7 @@
 
 ```bash
 # 进入目录
-cd ~/git/fireimage
+cd ~/git/my-flamegraph
 
 # 分析所有项目（默认30秒采样）
 python3 generic_profiler.py
