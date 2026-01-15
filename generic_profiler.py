@@ -47,6 +47,7 @@ class ProjectConfig:
         self.output_dir = Path(config.get('output_dir', '')).expanduser().resolve()
         self.build_cmds = config.get('build_cmds', [])
         self.run_cmd = config.get('run_cmd', '')  # 自定义启动命令（必需）
+        self.process_name = config.get('process_name', '')  # 可选：应用程序进程名称，用于查找实际PID
         self.args = config.get('args', [])
         self.env = config.get('env', {})
         self.startup_delay = config.get('startup_delay', 3)
@@ -68,6 +69,9 @@ class ProjectConfig:
 
         if not self.run_cmd:
             errors.append("未指定启动命令 (run_cmd)")
+
+        if not self.process_name:
+            errors.append("未指定进程名称 (process_name)，无法进行性能分析")
 
         return errors
 
@@ -145,6 +149,35 @@ class GenericProfiler:
             script_path = self.flamegraph_dir / script
             if not script_path.exists():
                 raise FileNotFoundError(f"FlameGraph脚本不存在: {script_path}")
+
+    def find_process_pid(self, process_name: str) -> Optional[int]:
+        """通过进程名查找PID"""
+        try:
+            import psutil
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                try:
+                    # 检查进程名或命令行
+                    if proc.info['name'] == process_name or \
+                       (proc.info['cmdline'] and process_name in ' '.join(proc.info['cmdline'])):
+                        return proc.info['pid']
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+        except ImportError:
+            # 回退到使用pgrep命令
+            try:
+                result = subprocess.run(
+                    ['pgrep', '-f', process_name],
+                    capture_output=True,
+                    text=True,
+                    check=False
+                )
+                if result.stdout:
+                    pids = result.stdout.strip().split()
+                    if pids:
+                        return int(pids[0])
+            except:
+                pass
+        return None
 
     def log(self, message: str, level: str = 'INFO'):
         """记录日志"""
@@ -260,8 +293,9 @@ class GenericProfiler:
             except subprocess.TimeoutExpired:
                 process.kill()
 
-    def run_cpu_analysis(self, pid: int):
+    def run_cpu_analysis(self):
         """运行CPU分析"""
+        process_name = self.project.process_name
         script = f"""
 #pragma D option quiet
 #pragma D option stackframes=100
@@ -269,7 +303,7 @@ class GenericProfiler:
 #pragma D option defaultargs
 
 profile-{self.cpu_freq}
-/pid == {pid}/
+/execname == "{process_name}"/
 {{
     @[ustack()] = count();
 }}
@@ -279,7 +313,7 @@ tick-{self.sample_time}s
     exit(0);
 }}
 """
-        self.run_dtrace_analysis(pid, script, self.cpu_stacks, "CPU分析")
+        self.run_dtrace_analysis(0, script, self.cpu_stacks, "CPU分析")
 
     def run_memory_analysis(self, pid: int):
         """运行内存分析"""
@@ -381,6 +415,11 @@ tick-{self.sample_time}s
         cmd = shlex.split(self.project.run_cmd) + self.project.args
         self.log(f"使用配置的启动命令: {self.project.run_cmd}")
 
+        # 启动CPU分析（使用进程名过滤，在程序启动前开始）
+        self.log("启动CPU分析（等待目标进程启动）...")
+        cpu_thread = threading.Thread(target=self.run_cpu_analysis)
+        cpu_thread.start()
+
         # 启动目标程序
         self.target_process = subprocess.Popen(
             cmd,
@@ -400,24 +439,30 @@ tick-{self.sample_time}s
             self.log(f"目标程序过早退出: {stderr}", level='ERROR')
             raise RuntimeError("目标程序过早退出")
 
-        pid = self.target_process.pid
-        self.log(f"目标程序已启动 (PID: {pid})")
+        # 查找实际应用程序PID
+        app_pid = None
+        for i in range(10):  # 尝试10次，每次等待0.5秒
+            app_pid = self.find_process_pid(self.project.process_name)
+            if app_pid and app_pid != self.target_process.pid:
+                self.log(f"找到应用程序进程: {self.project.process_name} (PID: {app_pid})")
+                break
+            time.sleep(0.5)
+            self.log(f"等待应用程序进程启动... ({i+1}/10)")
+
+        if not app_pid or app_pid == self.target_process.pid:
+            self.log(f"警告: 未能找到独立的应用程序进程，使用启动器进程PID: {self.target_process.pid}")
+            app_pid = self.target_process.pid
 
         try:
-            # 启动dtrace分析
+            # 启动内存分析（如果启用）
             if self.enable_memory:
-                # 并行运行CPU和内存分析
-                cpu_thread = threading.Thread(target=self.run_cpu_analysis, args=(pid,))
-                mem_thread = threading.Thread(target=self.run_memory_analysis, args=(pid,))
-
-                cpu_thread.start()
+                self.log("启动内存分析...")
+                mem_thread = threading.Thread(target=self.run_memory_analysis, args=(app_pid,))
                 mem_thread.start()
-
-                cpu_thread.join()
                 mem_thread.join()
             else:
-                # 仅CPU分析
-                self.run_cpu_analysis(pid)
+                # 等待CPU分析完成
+                cpu_thread.join()
 
             self.log("性能分析完成")
 

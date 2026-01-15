@@ -10,6 +10,7 @@ projects:
       - "xmake config -vD --yes -m release"
       - "xmake b stem"
     run_cmd: "xmake run stem"
+    process_name: "LiiiSTEM"
     cache_dirs:
       - "~/Library/Caches/LiiiLabs/"
       - "~/Library/Application Support/liiilabs"
@@ -22,6 +23,7 @@ projects:
       - "xmake config -vD --yes -m release --is_community=false"
       - "xmake b stem"
     run_cmd: "xmake run stem"
+    process_name: "MoganSTEM"
     cache_dirs:
       - "~/Library/Caches/MoganLab"
       - "~/Library/Application Support/moganlab"
@@ -42,6 +44,9 @@ projects:
     # 启动命令（必需）- 程序如何启动以进行性能分析
     run_cmd: "./bin/myapp --verbose"
 
+    # 进程名称（用于识别运行中的进程）（必需）
+    process_name: "myapp"
+    
     # 需要清理的缓存目录（在构建前清理）（可选）
     cache_dirs:
       - "~/.cache/myapp"
