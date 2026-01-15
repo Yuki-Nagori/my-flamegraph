@@ -46,9 +46,7 @@ class ProjectConfig:
         self.path = Path(config.get('path', '')).expanduser().resolve()
         self.output_dir = Path(config.get('output_dir', '')).expanduser().resolve()
         self.build_cmds = config.get('build_cmds', [])
-        self.executable = config.get('executable', '')
-        self.target = config.get('target', '')
-        self.run_cmd = config.get('run_cmd', '')  # 自定义启动命令，如果为空则使用默认逻辑
+        self.run_cmd = config.get('run_cmd', '')  # 自定义启动命令（必需）
         self.args = config.get('args', [])
         self.env = config.get('env', {})
         self.startup_delay = config.get('startup_delay', 3)
@@ -64,8 +62,8 @@ class ProjectConfig:
         if not self.path.exists():
             errors.append(f"项目路径不存在: {self.path}")
 
-        if not self.executable:
-            errors.append("未指定可执行文件名称")
+        if not self.run_cmd:
+            errors.append("未指定启动命令 (run_cmd)")
 
         return errors
 
@@ -200,59 +198,6 @@ class GenericProfiler:
                 self.log(f"错误输出: {e.stderr[:1000]}", level='ERROR')
             raise
 
-    def find_executable(self) -> Path:
-        """查找可执行文件"""
-        # 如果指定的是绝对路径或相对路径，直接使用
-        exe_candidate = Path(self.project.executable)
-        if exe_candidate.is_absolute():
-            if exe_candidate.exists() and os.access(exe_candidate, os.X_OK):
-                self.log(f"找到可执行文件: {exe_candidate}")
-                return exe_candidate
-        else:
-            # 尝试在项目目录中查找
-            exe_in_project = self.project.path / exe_candidate
-            if exe_in_project.exists() and os.access(exe_in_project, os.X_OK):
-                self.log(f"找到可执行文件: {exe_in_project}")
-                return exe_in_project
-
-            # 尝试在构建目录中查找
-            build_dirs = [
-                self.project.path / 'build' / 'macosx' / 'arm64' / 'release',
-                self.project.path / 'build' / 'macosx' / 'x86_64' / 'release',
-                self.project.path / 'build' / 'macosx' / 'arm64' / 'debug',
-                self.project.path / 'build' / 'macosx' / 'x86_64' / 'debug',
-                self.project.path / 'build',
-                self.project.path / 'bin',
-            ]
-
-            for build_dir in build_dirs:
-                if build_dir.exists():
-                    exe_path = build_dir / exe_candidate
-                    if exe_path.exists():
-                        if exe_path.is_dir() and exe_path.suffix == '.app':
-                            # macOS应用程序包
-                            macos_dir = exe_path / 'Contents' / 'MacOS'
-                            if macos_dir.exists():
-                                for file in macos_dir.iterdir():
-                                    if file.is_file() and os.access(file, os.X_OK):
-                                        self.log(f"找到可执行文件: {file}")
-                                        return file
-                        elif os.access(exe_path, os.X_OK):
-                            self.log(f"找到可执行文件: {exe_path}")
-                            return exe_path
-
-            # 尝试通配符查找
-            for build_dir in build_dirs:
-                if build_dir.exists():
-                    for file in build_dir.rglob(f"*{exe_candidate}*"):
-                        if file.is_file() and os.access(file, os.X_OK):
-                            self.log(f"找到可执行文件: {file}")
-                            return file
-
-        raise FileNotFoundError(
-            f"找不到可执行文件: {self.project.executable}\n"
-            f"请确保项目已构建，或在配置中指定正确的可执行文件路径。"
-        )
 
     def build_project(self):
         """构建项目"""
@@ -421,7 +366,7 @@ tick-{self.sample_time}s
             self.log(f"生成火焰图失败: {e}", level='ERROR')
             return False
 
-    def run_target_with_profiling(self, executable: Path):
+    def run_target_with_profiling(self):
         """运行目标程序并进行性能分析"""
 
         # 准备命令行参数
@@ -512,11 +457,8 @@ tick-{self.sample_time}s
             # 1. 构建项目
             self.build_project()
 
-            # 2. 查找可执行文件
-            executable = self.find_executable()
-
             # 3. 运行程序并进行性能分析
-            self.run_target_with_profiling(executable)
+            self.run_target_with_profiling()
 
             # 4. 生成火焰图
             self.log("生成火焰图...")

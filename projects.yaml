@@ -2,77 +2,61 @@
 # 每个项目需要配置以下信息：
 
 projects:
-  # 示例项目1: liii/mogan
+  # 实际项目1: liii
   liii:
-    # 项目根目录路径
     path: "/Users/yuki/git/liii/mogan"
-
-    # 输出目录（火焰图等文件将保存在这里）
     output_dir: "/Users/yuki/git/fireimage/liii"
-
-    # 构建命令（在项目目录中执行）
     build_cmds:
       - "xmake config -vD --yes -m release"
       - "xmake b stem"
-
-    # 可执行文件名称（或相对路径）
-    # 如果可执行文件在标准位置找不到，可以指定完整路径
-    executable: "LiiiSTEM"  # 或 "build/macosx/arm64/release/LiiiSTEM"
-
-    # 目标名称（用于xmake构建）
-    target: "stem"
-
-    # 程序启动参数（可选）
-    args: []
-
-    # 环境变量（可选）
-    env: {}
-
-    # 启动后等待时间（秒，等待程序完全启动）
-    startup_delay: 3
-
-    # 启动命令（如果为空，则根据target和executable自动决定）
     run_cmd: "xmake run stem"
-
-    # 需要清理的缓存目录（在构建前清理）
     cache_dirs:
       - "~/Library/Caches/LiiiLabs/"
       - "~/Library/Application Support/liiilabs"
 
-  # 示例项目2: mogan
+  # 实际项目2: mogan
   mogan:
     path: "/Users/yuki/git/mogan"
     output_dir: "/Users/yuki/git/fireimage/mogan"
     build_cmds:
       - "xmake config -vD --yes -m release --is_community=false"
       - "xmake b stem"
-    executable: "MoganSTEM"  # 构建生成的可执行文件
-    target: "stem"
-    args: []
-    env: {}
-    startup_delay: 3
-
-    # 启动命令（如果为空，则根据target和executable自动决定）
     run_cmd: "xmake run stem"
-
-    # 需要清理的缓存目录（在构建前清理）
     cache_dirs:
       - "~/Library/Caches/MoganLab"
       - "~/Library/Application Support/moganlab"
 
-  # 添加新项目的示例：
-  # myproject:
-  #   path: "/path/to/your/project"
-  #   output_dir: "/path/to/output"
-  #   build_cmds:
-  #     - "./configure"
-  #     - "make"
-  #   executable: "./bin/myapp"
-  #   target: ""
-  #   args: ["--verbose", "--log-level=debug"]
-  #   env:
-  #     LD_LIBRARY_PATH: "/usr/local/lib"
-  #   startup_delay: 5
+  # 完整示例项目（参考使用，不会被实际执行）
+  example:
+    # 项目根目录路径（必需）
+    path: "/path/to/your/project"
+
+    # 输出目录（火焰图等文件将保存在这里）（必需）
+    output_dir: "/path/to/output"
+
+    # 构建命令（在项目目录中执行）（必需）
+    build_cmds:
+      - "./configure"
+      - "make"
+
+    # 启动命令（必需）- 程序如何启动以进行性能分析
+    run_cmd: "./bin/myapp --verbose"
+
+    # 需要清理的缓存目录（在构建前清理）（可选）
+    cache_dirs:
+      - "~/.cache/myapp"
+      - "~/Library/Application Support/myapp"
+
+    # 程序启动参数（可选）- 如果已包含在run_cmd中则无需重复
+    args: []
+
+    # 环境变量（可选）
+    env:
+      LD_LIBRARY_PATH: "/usr/local/lib"
+      DEBUG: "1"
+
+    # 启动后等待时间（秒，等待程序完全启动）（可选，默认3）
+    startup_delay: 5
 
 # 全局配置
 global:
