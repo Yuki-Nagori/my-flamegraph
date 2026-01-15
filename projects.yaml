@@ -1,0 +1,80 @@
+# 性能分析项目配置
+# 每个项目需要配置以下信息：
+
+projects:
+  # 示例项目1: liii/mogan
+  liii:
+    # 项目根目录路径
+    path: "/Users/yuki/git/liii/mogan"
+
+    # 输出目录（火焰图等文件将保存在这里）
+    output_dir: "/Users/yuki/git/fireimage/liii"
+
+    # 构建命令（在项目目录中执行）
+    build_cmds:
+      - "xmake config -vD --yes -m --is_community=false"
+      - "xmake b stem"
+
+    # 可执行文件名称（或相对路径）
+    # 如果可执行文件在标准位置找不到，可以指定完整路径
+    executable: "LiiiSTEM"  # 或 "build/macosx/arm64/release/LiiiSTEM"
+
+    # 目标名称（用于xmake构建）
+    target: "stem"
+
+    # 程序启动参数（可选）
+    args: []
+
+    # 环境变量（可选）
+    env: {}
+
+    # 启动后等待时间（秒，等待程序完全启动）
+    startup_delay: 3
+
+  # 示例项目2: mogan
+  mogan:
+    path: "/Users/yuki/git/mogan"
+    output_dir: "/Users/yuki/git/fireimage/mogan"
+    build_cmds:
+      - "xmake config -vD --yes -m --is_community=false"
+      - "xmake b stem"
+    executable: "MoganSTEM"  # 构建生成的可执行文件
+    target: "stem"
+    args: []
+    env: {}
+    startup_delay: 3
+
+  # 添加新项目的示例：
+  # myproject:
+  #   path: "/path/to/your/project"
+  #   output_dir: "/path/to/output"
+  #   build_cmds:
+  #     - "./configure"
+  #     - "make"
+  #   executable: "./bin/myapp"
+  #   target: ""
+  #   args: ["--verbose", "--log-level=debug"]
+  #   env:
+  #     LD_LIBRARY_PATH: "/usr/local/lib"
+  #   startup_delay: 5
+
+# 全局配置
+global:
+  # 默认采样时间（秒）
+  default_sample_time: 30
+
+  # 默认CPU采样频率（Hz）
+  default_cpu_freq: 99
+
+  # 是否启用内存分析
+  enable_memory: true
+
+  # FlameGraph目录
+  flamegraph_dir: "/Users/yuki/git/FlameGraph"
+
+  # 是否跳过构建步骤
+  skip_build: false
+
+  # 超时设置（秒）
+  build_timeout: 300
+  profiling_timeout: 600
