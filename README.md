@@ -4,10 +4,8 @@
 
 ## 文件说明
 
-1. `flamegraph_profiler.py` - 单个可执行文件的通用分析器
-2. `run_profiling.py` - 针对两个预设项目(liii/mogan, mogan)的分析器
-3. `generic_profiler.py` - 基于配置文件的通用分析器（推荐）
-4. `projects.yaml` - 项目配置文件
+1. `generic_profiler.py` - 基于配置文件的通用分析器（推荐）
+2. `projects.yaml` - 项目配置文件
 
 ## 快速开始
 
@@ -16,7 +14,7 @@
 - FlameGraph工具集 (已安装在 `/Users/yuki/git/FlameGraph`)
 - Python 3.6+
 
-### 2. 使用通用分析器（推荐）
+### 2. 使用通用分析器
 
 ```bash
 # 进入目录
@@ -40,16 +38,6 @@ python3 generic_profiler.py --no-build
 
 # 禁用内存分析
 python3 generic_profiler.py --no-memory
-```
-
-### 3. 使用单个项目分析器
-
-```bash
-# 分析特定可执行文件
-python3 flamegraph_profiler.py --executable /path/to/program
-
-# 更多选项
-python3 flamegraph_profiler.py --executable /path/to/program --time 60 --output ./profiles
 ```
 
 ## 项目配置
