@@ -1,28 +1,4 @@
 #!/usr/bin/env python3
-"""
-通用火焰图性能分析工具
-支持通过配置文件管理多个项目
-
-用法：
-    python3 generic_profiler.py [选项]
-
-示例：
-    # 使用默认配置文件分析所有项目
-    python3 generic_profiler.py
-
-    # 分析特定项目
-    python3 generic_profiler.py --project liii
-
-    # 使用自定义配置文件
-    python3 generic_profiler.py --config my_projects.yaml
-
-    # 覆盖采样时间
-    python3 generic_profiler.py --time 60
-
-    # 仅构建不分析
-    python3 generic_profiler.py --build-only
-"""
-
 import os
 import sys
 import time
@@ -46,18 +22,17 @@ class ProjectConfig:
         self.path = Path(config.get('path', '')).expanduser().resolve()
         self.output_dir = Path(config.get('output_dir', '')).expanduser().resolve()
         self.build_cmds = config.get('build_cmds', [])
-        self.run_cmd = config.get('run_cmd', '')  # 自定义启动命令（必需）
-        self.process_name = config.get('process_name', '')  # 可选：应用程序进程名称，用于查找实际PID
+        self.run_cmd = config.get('run_cmd', '')
+        self.process_name = config.get('process_name', '')
         self.args = config.get('args', [])
         self.env = config.get('env', {})
         self.startup_delay = config.get('startup_delay', 3)
-        self.cache_dirs = config.get('cache_dirs', [])  # 需要清理的缓存目录
+        self.cache_dirs = config.get('cache_dirs', [])
 
         # 确保输出目录存在（如果路径无效则静默失败，例如示例配置）
         try:
             self.output_dir.mkdir(parents=True, exist_ok=True)
         except OSError:
-            # 忽略错误，可能是示例配置或无效路径
             pass
 
     def validate(self):
