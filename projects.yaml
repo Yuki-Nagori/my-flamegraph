@@ -5,9 +5,9 @@ projects:
   # 实际项目1: liii
   liii:
     path: "~/git/liii/mogan"
-    output_dir: "~/git/fireimage/liii"
+    output_dir: "~/git/my-flamegraph/liii"
     build_cmds:
-      - "xmake config -vD --yes -m release"
+      - "xmake config -vD --yes -m releasedbg"
       - "xmake b stem"
     run_cmd: "xmake run stem"
     process_name: "LiiiSTEM"
@@ -18,9 +18,9 @@ projects:
   # 实际项目2: mogan
   mogan:
     path: "~/git/mogan"
-    output_dir: "~/git/fireimage/mogan"
+    output_dir: "~/git/my-flamegraph/mogan"
     build_cmds:
-      - "xmake config -vD --yes -m release --is_community=false"
+      - "xmake config -vD --yes -m releasedbg --is_community=false"
       - "xmake b stem"
     run_cmd: "xmake run stem"
     process_name: "MoganSTEM"
@@ -66,7 +66,7 @@ projects:
 # 全局配置
 global:
   # 默认采样时间（秒）
-  default_sample_time: 30
+  default_sample_time: 60
 
   # 默认CPU采样频率（Hz）
   default_cpu_freq: 99
