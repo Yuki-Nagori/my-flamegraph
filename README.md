@@ -6,6 +6,8 @@
 
 1. `generic_profiler.py` - 基于配置文件的通用分析器
 2. `projects.yaml` - 项目配置文件
+3. `flamegraph_analyzer.py` - 整合的火焰图数据分析器
+4. `run_analysis.sh` - 交互式火焰图分析自动化脚本（支持菜单选择）
 
 ## 快速开始
 
@@ -38,6 +40,28 @@ python3 generic_profiler.py --no-build
 
 # 禁用内存分析
 python3 generic_profiler.py --no-memory
+```
+
+### 3. 使用交互式分析脚本
+
+```bash
+# 进入目录
+cd ~/git/my-flamegraph
+
+# 交互式模式（菜单选择）
+./run_analysis.sh
+
+# 命令行模式：分析liii项目（默认CPU+内存）
+./run_analysis.sh liii
+
+# 仅分析CPU
+./run_analysis.sh liii --cpu-only
+
+# 分析已有火焰图文件
+./run_analysis.sh liii/cpu.folded
+
+# 指定输出目录
+./run_analysis.sh liii --output my_results/
 ```
 
 ## 项目配置
