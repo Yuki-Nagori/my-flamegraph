@@ -122,6 +122,41 @@ get_menu_selection() {
     echo "$selection"
 }
 
+# 创建带日期和序号的输出目录
+# 格式: <base_dir>/<project_name>/<YYYYMMDD>-<sequence>/
+create_timestamped_output_dir() {
+    local base_dir="$1"
+    local project_name="$2"
+    
+    # 创建项目基础目录
+    local project_dir="$base_dir/$project_name"
+    mkdir -p "$project_dir"
+    
+    # 获取当前日期 (YYYYMMDD 格式)
+    local date_str=$(date +"%Y%m%d")
+    
+    # 查找当天已存在的最大序号
+    local max_seq=0
+    for dir in "$project_dir"/${date_str}-*; do
+        if [[ -d "$dir" ]]; then
+            # 提取序号
+            local seq=$(basename "$dir" | sed "s/${date_str}-//")
+            if [[ "$seq" =~ ^[0-9]+$ ]] && ((seq > max_seq)); then
+                max_seq=$seq
+            fi
+        fi
+    done
+    
+    # 新序号 = 最大序号 + 1
+    local new_seq=$((max_seq + 1))
+    
+    # 创建新目录
+    local output_dir="$project_dir/${date_str}-${new_seq}"
+    mkdir -p "$output_dir"
+    
+    echo "$output_dir"
+}
+
 # 解析命令行参数
 parse_arguments() {
     # 初始化变量
@@ -319,16 +354,28 @@ interactive_mode() {
 
 # 主分析函数
 run_analysis() {
-    # 创建输出目录
-    mkdir -p "$OUTPUT_DIR"
-    info "输出目录: $(realpath "$OUTPUT_DIR")"
+    # 确定项目名称
+    if [[ -f "$TARGET" ]]; then
+        FILENAME=$(basename "$TARGET")
+        PROJECT_NAME="${FILENAME%.*}"
+    elif [[ -d "$TARGET" ]]; then
+        PROJECT_NAME=$(basename "$TARGET")
+        if [[ -z "$PROJECT_NAME" ]] || [[ "$PROJECT_NAME" == "." ]]; then
+            PROJECT_NAME="folder_analysis"
+        fi
+    else
+        PROJECT_NAME="$TARGET"
+    fi
+    
+    # 创建带时间戳的输出目录
+    PROJECT_OUTPUT_DIR=$(create_timestamped_output_dir "$OUTPUT_DIR" "$PROJECT_NAME")
+    info "输出目录: $(realpath "$PROJECT_OUTPUT_DIR")"
 
     # 检查目标是文件还是项目名称
     if [[ -f "$TARGET" ]]; then
         # 目标是文件
         FOLDED_FILE="$TARGET"
         FILENAME=$(basename "$FOLDED_FILE")
-        PROJECT_NAME="${FILENAME%.*}"
 
         info "分析文件: $FOLDED_FILE"
 
@@ -342,10 +389,6 @@ run_analysis() {
             warning "您选择了'仅内存分析'，但文件名 '$FILENAME' 不包含'memory'或'mem'字样"
             warning "将继续分析文件，但请注意这可能不是内存火焰图数据"
         fi
-
-        # 创建项目输出子目录
-        PROJECT_OUTPUT_DIR="$OUTPUT_DIR/$PROJECT_NAME"
-        mkdir -p "$PROJECT_OUTPUT_DIR"
 
         # 生成报告文件名
         TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
@@ -391,23 +434,13 @@ run_analysis() {
             exit 1
         fi
 
-        # 设置项目名称为目录名
-        PROJECT_NAME=$(basename "$TARGET")
-        if [[ -z "$PROJECT_NAME" ]] || [[ "$PROJECT_NAME" == "." ]]; then
-            PROJECT_NAME="folder_analysis"
-        fi
-
-        # 创建项目输出子目录
-        PROJECT_OUTPUT_DIR="$OUTPUT_DIR/$PROJECT_NAME"
-        mkdir -p "$PROJECT_OUTPUT_DIR"
-
         # 生成时间戳
         TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 
         # 分析CPU火焰图
         if [[ -n "$CPU_FOLDED" ]] && [[ -f "$CPU_FOLDED" ]]; then
             info "分析CPU火焰图: $CPU_FOLDED"
-            CPU_REPORT="$PROJECT_OUTPUT_DIR/${REPORT_NAME}_cpu_${TIMESTAMP}.txt"
+            CPU_REPORT="$PROJECT_OUTPUT_DIR/${PROJECT_NAME}_cpu_${TIMESTAMP}.txt"
             python3 flamegraph_analyzer.py "$CPU_FOLDED" --output "$CPU_REPORT"
             success "CPU分析完成: $CPU_REPORT"
         elif [[ "$ANALYSIS_TYPE" == "cpu" ]] || [[ "$ANALYSIS_TYPE" == "both" ]]; then
@@ -417,7 +450,7 @@ run_analysis() {
         # 分析内存火焰图
         if [[ -n "$MEMORY_FOLDED" ]] && [[ -f "$MEMORY_FOLDED" ]]; then
             info "分析内存火焰图: $MEMORY_FOLDED"
-            MEMORY_REPORT="$PROJECT_OUTPUT_DIR/${REPORT_NAME}_memory_${TIMESTAMP}.txt"
+            MEMORY_REPORT="$PROJECT_OUTPUT_DIR/${PROJECT_NAME}_memory_${TIMESTAMP}.txt"
             python3 flamegraph_analyzer.py "$MEMORY_FOLDED" --output "$MEMORY_REPORT"
             success "内存分析完成: $MEMORY_REPORT"
         elif [[ "$ANALYSIS_TYPE" == "memory" ]] || [[ "$ANALYSIS_TYPE" == "both" ]]; then
@@ -450,16 +483,12 @@ run_analysis() {
 
         info "分析项目: $PROJECT_NAME"
 
-        # 创建项目输出子目录
-        PROJECT_OUTPUT_DIR="$OUTPUT_DIR/$PROJECT_NAME"
-        mkdir -p "$PROJECT_OUTPUT_DIR"
-
         if [[ "$RUN_PROFILING" == true ]]; then
-            # 运行性能分析生成火焰图
+            # 运行性能分析生成火焰图，直接输出到带时间戳的目录
             info "运行性能分析生成火焰图..."
 
-            # 构建generic_profiler.py命令
-            PROFILER_CMD="python3 generic_profiler.py --project $PROJECT_NAME --time $SAMPLE_TIME"
+            # 构建generic_profiler.py命令，指定输出目录
+            PROFILER_CMD="python3 generic_profiler.py --project $PROJECT_NAME --time $SAMPLE_TIME --output-dir \"$PROJECT_OUTPUT_DIR\""
 
             if [[ "$ANALYSIS_TYPE" == "cpu" ]]; then
                 PROFILER_CMD="$PROFILER_CMD --no-memory"
@@ -468,51 +497,38 @@ run_analysis() {
             info "执行命令: $PROFILER_CMD"
             eval "$PROFILER_CMD"
 
-            # 检查是否成功生成文件
-            PROJECT_CONFIG=$(grep -A 20 "^  $PROJECT_NAME:" projects.yaml | grep "output_dir:" | head -1 | cut -d: -f2 | tr -d ' "')
-            if [[ -n "$PROJECT_CONFIG" ]]; then
-                # 展开路径中的 ~
-                PROJECT_CONFIG="${PROJECT_CONFIG/#\~/$HOME}"
-                info "项目输出目录: $PROJECT_CONFIG"
+            # 火焰图和.folded文件应该已经在PROJECT_OUTPUT_DIR中
+            CPU_FOLDED="$PROJECT_OUTPUT_DIR/cpu.folded"
+            if [[ "$ANALYSIS_TYPE" == "memory" || "$ANALYSIS_TYPE" == "both" ]]; then
+                MEMORY_FOLDED="$PROJECT_OUTPUT_DIR/memory.folded"
             else
-                # 使用默认输出目录结构
-                PROJECT_CONFIG="$PROJECT_NAME"
-            fi
-
-            # 查找生成的.folded文件
-            if [[ -d "$PROJECT_CONFIG" ]]; then
-                CPU_FOLDED=$(find "$PROJECT_CONFIG" -name "cpu.folded" -type f | head -1)
-                if [[ "$ANALYSIS_TYPE" == "memory" || "$ANALYSIS_TYPE" == "both" ]]; then
-                    MEMORY_FOLDED=$(find "$PROJECT_CONFIG" -name "memory.folded" -type f | head -1)
-                else
-                    MEMORY_FOLDED=""
-                fi
-            else
-                CPU_FOLDED=""
                 MEMORY_FOLDED=""
-            fi
-
-            if [[ -z "$CPU_FOLDED" ]]; then
-                CPU_FOLDED="$PROJECT_CONFIG/cpu.folded"
-            fi
-
-            if [[ -z "$MEMORY_FOLDED" ]] && [[ "$ANALYSIS_TYPE" == "memory" || "$ANALYSIS_TYPE" == "both" ]]; then
-                MEMORY_FOLDED="$PROJECT_CONFIG/memory.folded"
             fi
         else
             # 不运行性能分析，查找现有文件
             info "查找现有火焰图文件..."
 
-            # 尝试在常见位置查找
-            CPU_FOLDED=$(find . -name "*cpu*.folded" -type f | head -1)
+            # 从项目配置中获取输出目录
+            PROJECT_CONFIG=$(grep -A 20 "^  $PROJECT_NAME:" projects.yaml | grep "output_dir:" | head -1 | cut -d: -f2 | tr -d ' "')
+            if [[ -n "$PROJECT_CONFIG" ]]; then
+                # 展开路径中的 ~
+                PROJECT_CONFIG="${PROJECT_CONFIG/#\~/$HOME}"
+            else
+                # 使用默认输出目录结构
+                PROJECT_CONFIG="$PROJECT_NAME"
+            fi
+
+            # 查找最新的火焰图文件
+            CPU_FOLDED=$(find "$PROJECT_CONFIG" -name "*cpu*.folded" -type f -o -name "cpu.folded" -type f | sort -r | head -1)
             if [[ "$ANALYSIS_TYPE" == "memory" || "$ANALYSIS_TYPE" == "both" ]]; then
-                MEMORY_FOLDED=$(find . -name "*memory*.folded" -type f | head -1)
+                MEMORY_FOLDED=$(find "$PROJECT_CONFIG" -name "*memory*.folded" -type f -o -name "memory.folded" -type f | sort -r | head -1)
             else
                 MEMORY_FOLDED=""
             fi
 
             if [[ -z "$CPU_FOLDED" ]]; then
                 error "未找到CPU火焰图文件 (.folded)"
+                error "请先运行性能分析生成火焰图"
                 exit 1
             fi
         fi
@@ -523,7 +539,7 @@ run_analysis() {
         # 分析CPU火焰图
         if [[ -f "$CPU_FOLDED" ]]; then
             info "分析CPU火焰图: $CPU_FOLDED"
-            CPU_REPORT="$PROJECT_OUTPUT_DIR/${REPORT_NAME}_cpu_${TIMESTAMP}.txt"
+            CPU_REPORT="$PROJECT_OUTPUT_DIR/${PROJECT_NAME}_cpu_${TIMESTAMP}.txt"
             python3 flamegraph_analyzer.py "$CPU_FOLDED" --output "$CPU_REPORT"
             success "CPU分析完成: $CPU_REPORT"
         else
@@ -533,7 +549,7 @@ run_analysis() {
         # 分析内存火焰图
         if [[ "$ANALYZE_MEMORY" == true ]] && [[ -f "$MEMORY_FOLDED" ]]; then
             info "分析内存火焰图: $MEMORY_FOLDED"
-            MEMORY_REPORT="$PROJECT_OUTPUT_DIR/${REPORT_NAME}_memory_${TIMESTAMP}.txt"
+            MEMORY_REPORT="$PROJECT_OUTPUT_DIR/${PROJECT_NAME}_memory_${TIMESTAMP}.txt"
             python3 flamegraph_analyzer.py "$MEMORY_FOLDED" --output "$MEMORY_REPORT"
             success "内存分析完成: $MEMORY_REPORT"
         elif [[ "$ANALYZE_MEMORY" == true ]] && [[ ! -f "$MEMORY_FOLDED" ]]; then

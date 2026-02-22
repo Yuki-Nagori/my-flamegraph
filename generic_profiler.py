@@ -618,6 +618,8 @@ def main():
                        help='仅构建，不进行性能分析')
     parser.add_argument('--flamegraph-dir', type=Path,
                        help='FlameGraph目录路径，覆盖配置文件中的设置')
+    parser.add_argument('--output-dir', type=Path,
+                       help='输出目录路径，覆盖配置文件中的output_dir设置')
 
     args = parser.parse_args()
 
@@ -665,6 +667,11 @@ def main():
 
         for project_name in projects_to_analyze:
             project_config = projects[project_name]
+            
+            # 如果指定了输出目录，覆盖项目配置中的output_dir
+            if args.output_dir:
+                project_config.output_dir = args.output_dir.expanduser().resolve()
+                project_config.output_dir.mkdir(parents=True, exist_ok=True)
 
             profiler = GenericProfiler(
                 project_config=project_config,

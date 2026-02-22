@@ -20,13 +20,14 @@ projects:
     path: "~/git/mogan"
     output_dir: "~/git/my-flamegraph/mogan"
     build_cmds:
-      - "xmake config -vD --yes -m releasedbg --is_community=false"
+      # - "xmake config -vD --yes -m releasedbg --is_community=false"
+      - "xmake config -vD --yes -m releasedbg"
       - "xmake b stem"
     run_cmd: "xmake run stem"
     process_name: "MoganSTEM"
     cache_dirs:
-      - "~/Library/Caches/MoganLab"
-      - "~/Library/Application Support/moganlab"
+      # - "~/Library/Caches/MoganLab"
+      # - "~/Library/Application Support/moganlab"
 
   # 完整示例项目（参考使用，不会被实际执行）
   example:
@@ -66,7 +67,7 @@ projects:
 # 全局配置
 global:
   # 默认采样时间（秒）
-  default_sample_time: 60
+  default_sample_time: 30
 
   # 默认CPU采样频率（Hz）
   default_cpu_freq: 99
